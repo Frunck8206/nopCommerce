@@ -1,5 +1,4 @@
 ﻿@model CheckoutShippingAddressModel
-@using System.Globalization
 @{
     Layout = "_ColumnsOne";
 
@@ -19,11 +18,10 @@
 
             @if (Model.DisplayPickupInStore && Model.PickupPointsModel.AllowPickupInStore)
             {
-                @await Html.PartialAsync("_PickupPoints", Model.PickupPointsModel)
+                @await Html.PartialAsync("_PickupPoints", Model.PickupPointsModel, ViewData)
                 <script asp-location="Footer">
                     $(document).ready(function () {
                         $(document).on('checkout_toggle_pickup_in_store', function (e) {
-                            console.log(e);
                             if (e.checked)
                                 $('#shipping-addresses-form').hide();
                             else

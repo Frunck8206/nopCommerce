@@ -6,27 +6,25 @@
 {
     <div class="section pickup-in-store">
         <div class="selector">
-            <input asp-for="PickupInStore" />
+            <input asp-for="PickupInStore" onclick="togglePickupInStore(this)" />
             <label asp-for="PickupInStore">@T("Checkout.PickupPoints")</label>
         </div>
         <div class="description">
             @T("Checkout.PickupPoints.Description")
         </div>
         <script asp-location="Footer">
-            $(document).ready(function() {
-                $("#@Html.IdFor(model => model.PickupInStore)").on('change', togglePickupInStore);
-                togglePickupInStore();
+            $(document).ready(function () {
+                togglePickupInStore($("#@Html.IdFor(model => model.PickupInStore)"));
             });
 
-            function togglePickupInStore() {
-                let isChecked = $('#@Html.IdFor(model => model.PickupInStore)').is(':checked');
-                if (isChecked) {
+            function togglePickupInStore(pickupInStore) {
+                if (pickupInStore.checked) {
                     $('#pickup-points-form').show();
                 } else {
                     $('#pickup-points-form').hide();
                 }
 
-                $(document).trigger({ type: "checkout_toggle_pickup_in_store", checked: isChecked });
+                $(document).trigger({ type: "checkout_toggle_pickup_in_store", checked: pickupInStore.checked });
             }
         </script>
     </div>
@@ -56,9 +54,7 @@
             }
             else
             {
-                <div class="title">
-                    <strong>@T("Checkout.PickupPoints.SelectPickupPoint")</strong>
-                </div>
+                <label for="pickup-points-select">@T("Checkout.PickupPoints.SelectPickupPoint")</label>
                 <select name="pickup-points-id" id="pickup-points-select" class="address-select" title="">
                     @foreach (var point in Model.PickupPoints)
                     {

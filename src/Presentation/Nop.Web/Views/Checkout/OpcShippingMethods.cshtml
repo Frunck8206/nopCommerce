@@ -1,14 +1,16 @@
 ﻿@model CheckoutShippingMethodModel
+@{
+    Context.Items["nop.IgnoreScriptTagLocation"] = true;
+}
 
-<div class="checkout-data">   
+<div class="checkout-data">
     @if (Model.DisplayPickupInStore && Model.PickupPointsModel.AllowPickupInStore)
     {
-        @await Html.PartialAsync("_OpcPickupPoints", Model.PickupPointsModel)
+        @await Html.PartialAsync("_PickupPoints", Model.PickupPointsModel)
         <script>
             $(document).ready(function () {
-                $(document).unbind('onepagecheckout_toggle_pickup_in_store');
-                $(document).on('onepagecheckout_toggle_pickup_in_store', function (e) {
-                    console.log(e);
+                $(document).unbind('checkout_toggle_pickup_in_store');
+                $(document).on('checkout_toggle_pickup_in_store', function (e) {
                     if (e.checked)
                         $('#shipping-methods-form').hide();
                     else
