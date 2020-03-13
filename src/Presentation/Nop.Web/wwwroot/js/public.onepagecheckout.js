@@ -213,17 +213,6 @@ var Shipping = {
         Shipping.initializeCountrySelect();
     },
 
-    togglePickupInStore: function (pickupInStoreInput) {
-        if (pickupInStoreInput.checked) {
-            $('#pickup-points-form').show();
-        }
-        else {
-            $('#pickup-points-form').hide();
-        }
-
-        $(document).trigger({ type: "onepagecheckout_toggle_pickup_in_store", checked: pickupInStoreInput.checked });
-    },
-
     resetSelectedAddress: function () {
         var selectElement = $('#shipping-address-select');
         if (selectElement) {
