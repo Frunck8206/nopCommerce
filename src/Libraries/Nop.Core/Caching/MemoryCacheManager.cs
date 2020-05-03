@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Caching.Memory;
@@ -19,7 +20,7 @@ namespace Nop.Core.Caching
 
         private readonly IMemoryCache _memoryCache;
 
-        private static readonly ConcurrentDictionary<string, CancellationTokenSource>  _prefixes = new ConcurrentDictionary<string, CancellationTokenSource>();
+        private static readonly ConcurrentDictionary<string, CancellationTokenSource> _prefixes = new ConcurrentDictionary<string, CancellationTokenSource>();
         private static CancellationTokenSource _clearToken = new CancellationTokenSource();
 
         #endregion
@@ -29,6 +30,34 @@ namespace Nop.Core.Caching
         public MemoryCacheManager(IMemoryCache memoryCache)
         {
             _memoryCache = memoryCache;
+        }
+
+        #endregion
+
+        #region Utilities
+
+        /// <summary>
+        /// Prepare cache entry options for the passed key
+        /// </summary>
+        /// <param name="key">Cache key</param>
+        /// <returns>Cache entry options</returns>
+        private MemoryCacheEntryOptions PrepareEntryOptions(CacheKey key)
+        {
+            //set expiration time for the passed cache key
+            var options = new MemoryCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(key.CacheTime)
+            };
+
+            //add tokens to clear cache entries
+            options.AddExpirationToken(new CancellationChangeToken(_clearToken.Token));
+            foreach (var keyPrefix in key.Prefixes.ToList())
+            {
+                var tokenSource = _prefixes.GetOrAdd(keyPrefix, new CancellationTokenSource());
+                options.AddExpirationToken(new CancellationChangeToken(tokenSource.Token));
+            }
+
+            return options;
         }
 
         #endregion
@@ -47,38 +76,18 @@ namespace Nop.Core.Caching
             if (key.CacheTime <= 0)
                 return acquire();
 
-            return _memoryCache.GetOrCreate(key.Key, entry =>
+            var result = _memoryCache.GetOrCreate(key.Key, entry =>
             {
-                SetupEntry(entry, key);
+                entry.SetOptions(PrepareEntryOptions(key));
 
                 return acquire();
             });
-        }
 
-        private void SetupEntry(ICacheEntry entry, CacheKey key)
-        {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(key.CacheTime);
-            entry.AddExpirationToken(new CancellationChangeToken(_clearToken.Token));
+            //do not cache null value
+            if (result == null)
+                Remove(key);
 
-            foreach (var keyPrefix in key.Prefixes)
-            {
-                var tokenSource = _prefixes.GetOrAdd(keyPrefix, new CancellationTokenSource());
-
-                entry.AddExpirationToken(new CancellationChangeToken(tokenSource.Token));
-            }
-        }
-
-        private void SetupEntry(MemoryCacheEntryOptions entry, CacheKey key)
-        {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(key.CacheTime);
-            entry.AddExpirationToken(new CancellationChangeToken(_clearToken.Token));
-
-            foreach (var keyPrefix in key.Prefixes)
-            {
-                var tokenSource = _prefixes.GetOrAdd(keyPrefix, new CancellationTokenSource());
-
-                entry.AddExpirationToken(new CancellationChangeToken(tokenSource.Token));
-            }
+            return result;
         }
 
         /// <summary>
@@ -102,12 +111,18 @@ namespace Nop.Core.Caching
             if (key.CacheTime <= 0)
                 return await acquire();
 
-            return await _memoryCache.GetOrCreateAsync(key.Key, async entry =>
-            {
-                SetupEntry(entry, key);
+            var result = await _memoryCache.GetOrCreateAsync(key.Key, async entry =>
+             {
+                 entry.SetOptions(PrepareEntryOptions(key));
 
-                return await acquire();
-            });
+                 return await acquire();
+             });
+
+            //do not cache null value
+            if (result == null)
+                Remove(key);
+
+            return result;
         }
 
         /// <summary>
@@ -117,13 +132,10 @@ namespace Nop.Core.Caching
         /// <param name="data">Value for caching</param>
         public void Set(CacheKey key, object data)
         {
-            if (key.CacheTime <= 0)
+            if (key.CacheTime <= 0 || data == null)
                 return;
 
-            var option = new MemoryCacheEntryOptions();
-            SetupEntry(option, key);
-
-            _memoryCache.Set(key.Key, data, option);
+            _memoryCache.Set(key.Key, data, PrepareEntryOptions(key));
         }
 
         /// <summary>
@@ -194,6 +206,12 @@ namespace Nop.Core.Caching
             _clearToken.Dispose();
 
             _clearToken = new CancellationTokenSource();
+
+            foreach (var prefix in _prefixes.Keys.ToList())
+            {
+                _prefixes.TryRemove(prefix, out var tokenSource);
+                tokenSource?.Dispose();
+            }
         }
 
         /// <summary>

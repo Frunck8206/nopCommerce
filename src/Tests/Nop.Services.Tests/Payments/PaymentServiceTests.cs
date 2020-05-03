@@ -1,13 +1,12 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using FluentAssertions;
+using Microsoft.AspNetCore.Http;
 using Moq;
 using Nop.Core.Domain.Orders;
 using Nop.Core.Domain.Payments;
-using Nop.Services.Configuration;
 using Nop.Services.Events;
 using Nop.Services.Payments;
-using Nop.Services.Tests.FakeServices;
 using NUnit.Framework;
 
 namespace Nop.Services.Tests.Payments
@@ -18,9 +17,9 @@ namespace Nop.Services.Tests.Payments
         private PaymentSettings _paymentSettings;
         private ShoppingCartSettings _shoppingCartSettings;
         private Mock<IEventPublisher> _eventPublisher;
-        private Mock<ISettingService> _settingService;
         private IPaymentPluginManager _paymentPluginManager;
         private IPaymentService _paymentService;
+        private Mock<IHttpContextAccessor> _httpContextAccessor;
 
         [SetUp]
         public new void SetUp()
@@ -33,36 +32,43 @@ namespace Nop.Services.Tests.Payments
 
             _eventPublisher = new Mock<IEventPublisher>();
             _eventPublisher.Setup(x => x.Publish(It.IsAny<object>()));
-
-            var pluginService = new FakePluginService();
-
+            
             _shoppingCartSettings = new ShoppingCartSettings();
-            _settingService = new Mock<ISettingService>();
-            _paymentPluginManager = new PaymentPluginManager(pluginService, _settingService.Object, _paymentSettings);
-            _paymentService = new PaymentService(_paymentPluginManager, _paymentSettings, _shoppingCartSettings);
+            _httpContextAccessor = new Mock<IHttpContextAccessor>();
+            _paymentPluginManager = new PaymentPluginManager();
+            _paymentService = new PaymentService(_httpContextAccessor.Object, _paymentPluginManager, _paymentSettings, _shoppingCartSettings);
         }
 
         [Test]
         public void Can_load_paymentMethods()
         {
-            var srcm = _paymentPluginManager.LoadAllPlugins();
-            srcm.Should().NotBeNull();
-            srcm.Any().Should().BeTrue();
+            RunWithTestServiceProvider(() =>
+            {
+                var srcm = _paymentPluginManager.LoadAllPlugins();
+                srcm.Should().NotBeNull();
+                srcm.Any().Should().BeTrue();
+            });
         }
 
         [Test]
         public void Can_load_paymentMethod_by_systemKeyword()
         {
-            var srcm = _paymentPluginManager.LoadPluginBySystemName("Payments.TestMethod");
-            srcm.Should().NotBeNull();
+            RunWithTestServiceProvider(() =>
+            {
+                var srcm = _paymentPluginManager.LoadPluginBySystemName("Payments.TestMethod");
+                srcm.Should().NotBeNull();
+            });
         }
 
         [Test]
         public void Can_load_active_paymentMethods()
         {
-            var srcm = _paymentPluginManager.LoadActivePlugins();
-            srcm.Should().NotBeNull();
-            srcm.Any().Should().BeTrue();
+            RunWithTestServiceProvider(() =>
+            {
+                var srcm = _paymentPluginManager.LoadActivePlugins();
+                srcm.Should().NotBeNull();
+                srcm.Any().Should().BeTrue();
+            });
         }
 
         [Test]

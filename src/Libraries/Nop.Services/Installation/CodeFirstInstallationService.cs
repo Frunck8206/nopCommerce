@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using Nop.Core;
+using Nop.Core.Caching;
 using Nop.Core.Domain;
 using Nop.Core.Domain.Affiliates;
 using Nop.Core.Domain.Blogs;
@@ -32,18 +33,18 @@ using Nop.Core.Domain.Tax;
 using Nop.Core.Domain.Topics;
 using Nop.Core.Domain.Vendors;
 using Nop.Core.Infrastructure;
+using Nop.Core.Security;
 using Nop.Data;
 using Nop.Services.Blogs;
 using Nop.Services.Caching.Extensions;
 using Nop.Services.Common;
 using Nop.Services.Configuration;
 using Nop.Services.Customers;
-using Nop.Services.Defaults;
 using Nop.Services.Helpers;
 using Nop.Services.Localization;
 using Nop.Services.Media;
 using Nop.Services.News;
-using NopSeoDefaults = Nop.Services.Defaults.NopSeoDefaults;
+using Nop.Services.Seo;
 
 namespace Nop.Services.Installation
 {
@@ -55,7 +56,7 @@ namespace Nop.Services.Installation
         #region Fields
 
         private readonly IAddressService _addressService;
-        private readonly IDataProvider _dataProvider;
+        private readonly INopDataProvider _dataProvider;
         private readonly IGenericAttributeService _genericAttributeService;
         private readonly INopFileProvider _fileProvider;
         private readonly IRepository<ActivityLog> _activityLogRepository;
@@ -122,7 +123,7 @@ namespace Nop.Services.Installation
         #region Ctor
 
         public CodeFirstInstallationService(IAddressService addressService,
-            IDataProvider dataProvider,
+            INopDataProvider dataProvider,
             IGenericAttributeService genericAttributeService,
             INopFileProvider fileProvider,
             IRepository<ActivityLog> activityLogRepository,
@@ -267,10 +268,10 @@ namespace Nop.Services.Installation
 
         protected virtual SpecificationAttributeOption GetSpecificationAttributeOption(string specAttributeName, string specAttributeOptionName)
         {
-            var specificationAttribute = _specificationAttributeRepository.Table.Single(sa => sa.Name == "Screensize");
+            var specificationAttribute = _specificationAttributeRepository.Table.Single(sa => sa.Name == specAttributeName);
 
             var specificationAttributeOption = _specificationAttributeOptionRepository.Table.Single(sao =>
-                sao.Name == "13.0''" && sao.SpecificationAttributeId == specificationAttribute.Id);
+                sao.Name == specAttributeOptionName && sao.SpecificationAttributeId == specificationAttribute.Id);
 
             return specificationAttributeOption;
         }
@@ -4571,7 +4572,7 @@ namespace Nop.Services.Installation
             //set hashed admin password
             var customerRegistrationService = EngineContext.Current.Resolve<ICustomerRegistrationService>();
             customerRegistrationService.ChangePassword(new ChangePasswordRequest(defaultUserEmail, false,
-                 PasswordFormat.Hashed, defaultUserPassword, null, NopCustomerServiceDefaults.DefaultHashedPasswordFormat));
+                 PasswordFormat.Hashed, defaultUserPassword, null, NopCustomerServicesDefaults.DefaultHashedPasswordFormat));
 
             //search engine (crawler) built-in user
             var searchEngineUser = new Customer
@@ -6123,21 +6124,18 @@ namespace Nop.Services.Installation
             settingService.SaveSetting(new CommonSettings
             {
                 UseSystemEmailForContactUsForm = true,
-                UseStoredProcedureForLoadingCategories = true,
 
                 DisplayJavaScriptDisabledWarning = false,
                 UseFullTextSearch = false,
                 FullTextMode = FulltextSearchMode.ExactMatch,
                 Log404Errors = true,
                 BreadcrumbDelimiter = "/",
-                RenderXuaCompatible = false,
-                XuaCompatibleValue = "IE=edge",
                 BbcodeEditorOpenLinksInNewWindow = false,
                 PopupForTermsOfServiceLinks = true,
                 JqueryMigrateScriptLoggingActive = false,
                 SupportPreviousNopcommerceVersions = true,
                 UseResponseCompression = true,
-                StaticFilesCacheControl = "public,max-age=604800",
+                StaticFilesCacheControl = "public,max-age=31536000",
                 FaviconAndAppIconsHeadCode = "<link rel=\"apple-touch-icon\" sizes=\"180x180\" href=\"/icons/icons_0/apple-touch-icon.png\"><link rel=\"icon\" type=\"image/png\" sizes=\"32x32\" href=\"/icons/icons_0/favicon-32x32.png\"><link rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"/icons/icons_0/android-chrome-192x192.png\"><link rel=\"icon\" type=\"image/png\" sizes=\"16x16\" href=\"/icons/icons_0/favicon-16x16.png\"><link rel=\"manifest\" href=\"/icons/icons_0/site.webmanifest\"><link rel=\"mask-icon\" href=\"/icons/icons_0/safari-pinned-tab.svg\" color=\"#5bbad5\"><link rel=\"shortcut icon\" href=\"/icons/icons_0/favicon.ico\"><meta name=\"msapplication-TileColor\" content=\"#2d89ef\"><meta name=\"msapplication-TileImage\" content=\"/icons/icons_0/mstile-144x144.png\"><meta name=\"msapplication-config\" content=\"/icons/icons_0/browserconfig.xml\"><meta name=\"theme-color\" content=\"#ffffff\">",
                 EnableHtmlMinification = true,
                 //we disable bundling out of the box because it requires a lot of server resources
@@ -6352,7 +6350,7 @@ namespace Nop.Services.Installation
                 CheckUsernameAvailabilityEnabled = false,
                 AllowUsersToChangeUsernames = false,
                 DefaultPasswordFormat = PasswordFormat.Hashed,
-                HashedPasswordFormat = NopCustomerServiceDefaults.DefaultHashedPasswordFormat,
+                HashedPasswordFormat = NopCustomerServicesDefaults.DefaultHashedPasswordFormat,
                 PasswordMinLength = 6,
                 PasswordRequireDigit = false,
                 PasswordRequireLowercase = false,
@@ -6409,7 +6407,10 @@ namespace Nop.Services.Installation
                 EnteringEmailTwice = false,
                 RequireRegistrationForDownloadableProducts = false,
                 AllowCustomersToCheckGiftCardBalance = false,
-                DeleteGuestTaskOlderThanMinutes = 1440
+                DeleteGuestTaskOlderThanMinutes = 1440,
+                PhoneNumberValidationEnabled = false,
+                PhoneNumberValidationUseRegex = false,
+                PhoneNumberValidationRule = "^[0-9]{1,14}?$"
             });
 
             settingService.SaveSetting(new AddressSettings
@@ -6555,6 +6556,7 @@ namespace Nop.Services.Installation
                 OnePageCheckoutDisplayOrderTotalsOnPaymentInfoTab = false,
                 DisableBillingAddressCheckoutStep = false,
                 DisableOrderCompletedPage = false,
+                DisplayPickupInStoreOnShippingMethodPage = false,
                 AttachPdfInvoiceToOrderPlacedEmail = false,
                 AttachPdfInvoiceToOrderCompletedEmail = false,
                 GeneratePdfInvoiceInCustomerLanguage = true,
@@ -6575,7 +6577,6 @@ namespace Nop.Services.Installation
 
             settingService.SaveSetting(new SecuritySettings
             {
-                ForceSslForAllPages = true,
                 EncryptionKey = CommonHelper.GenerateRandomDigitCode(16),
                 AdminAreaAllowedIpAddresses = null,
                 HoneypotEnabled = false,
@@ -6786,6 +6787,8 @@ namespace Nop.Services.Installation
                 ReCaptchaTheme = string.Empty,
                 AutomaticallyChooseLanguage = true,
                 Enabled = false,
+                CaptchaType = CaptchaType.CheckBoxReCaptchaV2,
+                ReCaptchaV3ScoreThreshold = 0.5M,
                 ShowOnApplyVendorPage = false,
                 ShowOnBlogCommentPage = false,
                 ShowOnContactUsPage = false,
@@ -6813,6 +6816,20 @@ namespace Nop.Services.Installation
                 Password = string.Empty,
                 BypassOnLocal = true,
                 PreAuthenticate = true
+            });
+
+            settingService.SaveSetting(new CookieSettings
+            {
+                CompareProductsCookieExpires = 24 *10,
+                RecentlyViewedProductsCookieExpires = 24 *10,
+                CustomerCookieExpires = 24 * 365
+            });
+
+            settingService.SaveSetting(new CachingSettings
+            {
+                ShortTermCacheTime = 5,
+                DefaultCacheTime = NopCachingDefaults.CacheTime,
+                BundledFilesCacheTime = 120
             });
         }
 
@@ -10997,7 +11014,7 @@ namespace Nop.Services.Installation
                     });
 
                     product.ApprovedRatingSum = rating;
-                    //product.ApprovedTotalReviews = _dbContext.Set<ProductReview>().Count(r => r.ProductId == product.Id);
+                    product.ApprovedTotalReviews = 1;
                 }
             }
 
@@ -12213,6 +12230,12 @@ namespace Nop.Services.Installation
                     SystemKeyword = "UploadNewTheme",
                     Enabled = true,
                     Name = "Upload a theme"
+                },
+                new ActivityLogType
+                {
+                    SystemKeyword = "UploadIcons",
+                    Enabled = true,
+                    Name = "Upload a favicon and app icons"
                 }
             };
             _activityLogTypeRepository.Insert(activityLogTypes);

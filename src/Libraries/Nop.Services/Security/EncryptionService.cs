@@ -2,6 +2,7 @@
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
+using Nop.Core;
 using Nop.Core.Domain.Security;
 
 namespace Nop.Services.Security
@@ -78,26 +79,7 @@ namespace Nop.Services.Security
         /// <returns>Password hash</returns>
         public virtual string CreatePasswordHash(string password, string saltkey, string passwordFormat)
         {
-            return CreateHash(Encoding.UTF8.GetBytes(string.Concat(password, saltkey)), passwordFormat);
-        }
-
-        /// <summary>
-        /// Create a data hash
-        /// </summary>
-        /// <param name="data">The data for calculating the hash</param>
-        /// <param name="hashAlgorithm">Hash algorithm</param>
-        /// <returns>Data hash</returns>
-        public virtual string CreateHash(byte[] data, string hashAlgorithm)
-        {
-            if (string.IsNullOrEmpty(hashAlgorithm))
-                throw new ArgumentNullException(nameof(hashAlgorithm));
-
-            var algorithm = (HashAlgorithm)CryptoConfig.CreateFromName(hashAlgorithm);
-            if (algorithm == null)
-                throw new ArgumentException("Unrecognized hash name");
-
-            var hashByteArray = algorithm.ComputeHash(data);
-            return BitConverter.ToString(hashByteArray).Replace("-", string.Empty);
+            return HashHelper.CreateHash(Encoding.UTF8.GetBytes(string.Concat(password, saltkey)), passwordFormat);
         }
 
         /// <summary>

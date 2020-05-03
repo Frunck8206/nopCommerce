@@ -432,7 +432,7 @@ namespace Nop.Plugin.Shipping.UPS.Services
                 };
             }
 
-            //set saturday delivery details
+            //set Saturday delivery details
             if (saturdayDelivery)
             {
                 request.Shipment.ShipmentServiceOptions = new UPSRate.ShipmentServiceOptionsType
@@ -524,11 +524,6 @@ namespace Nop.Plugin.Shipping.UPS.Services
                 if (_upsSettings.InsurePackage)
                 {
                     //The maximum declared amount per package: 50000 USD.
-                    //TODO: Currently using Product.Price - should we use GetUnitPrice() instead?
-                    // Convert.ToInt32(_priceCalculationService.GetUnitPrice(sci, includeDiscounts:false))
-                    //One could argue that the insured value should be based on Cost rather than Price.
-                    //GetUnitPrice handles Attribute Adjustments and also Customer Entered Price.
-                    //But, even with includeDiscounts:false, it could apply a "discount" from Tier pricing.
                     insuranceAmount = Convert.ToInt32(packageItem.Product.Price);
                 }
 
@@ -846,11 +841,20 @@ namespace Nop.Plugin.Shipping.UPS.Services
                 if (!monetaryValue.HasValue)
                     continue;
 
+                //parse transit days
+                int? transitDays = null;
+                if (!string.IsNullOrWhiteSpace(rate.GuaranteedDelivery?.BusinessDaysInTransit))
+                {
+                    if (int.TryParse(rate.GuaranteedDelivery.BusinessDaysInTransit, out var businessDaysInTransit))
+                        transitDays = businessDaysInTransit;
+                }
+
                 //add shipping option based on service rate
                 shippingOptions.Add(new ShippingOption
                 {
                     Rate = monetaryValue.Value,
-                    Name = deliveryService.Name
+                    Name = deliveryService.Name,
+                    TransitDays = transitDays
                 });
             }
 
@@ -915,7 +919,7 @@ namespace Nop.Plugin.Shipping.UPS.Services
             if (!string.IsNullOrEmpty(error))
                 response.Errors.Add(error);
 
-            //get rates for saturday delivery
+            //get rates for Saturday delivery
             if (_upsSettings.SaturdayDeliveryEnabled)
             {
                 var (saturdayShippingOptions, saturdayError) = GetShippingOptions(shippingOptionRequest, true);
@@ -923,8 +927,8 @@ namespace Nop.Plugin.Shipping.UPS.Services
                 {
                     response.ShippingOptions.Add(shippingOption);
                 }
-                if (!string.IsNullOrEmpty(error))
-                    response.Errors.Add(error);
+                if (!string.IsNullOrEmpty(saturdayError))
+                    response.Errors.Add(saturdayError);
             }
 
             if (response.ShippingOptions.Any())

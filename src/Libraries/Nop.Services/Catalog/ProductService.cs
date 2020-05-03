@@ -14,7 +14,7 @@ using Nop.Core.Domain.Shipping;
 using Nop.Core.Domain.Stores;
 using Nop.Core.Infrastructure;
 using Nop.Data;
-using Nop.Services.Caching.CachingDefaults;
+using Nop.Services.Caching;
 using Nop.Services.Caching.Extensions;
 using Nop.Services.Customers;
 using Nop.Services.Events;
@@ -36,8 +36,9 @@ namespace Nop.Services.Catalog
         protected readonly CatalogSettings _catalogSettings;
         protected readonly CommonSettings _commonSettings;
         protected readonly IAclService _aclService;
+        protected readonly ICacheKeyService _cacheKeyService;
         protected readonly ICustomerService _customerService;
-        protected readonly IDataProvider _dataProvider;
+        protected readonly INopDataProvider _dataProvider;
         protected readonly IDateRangeService _dateRangeService;
         protected readonly IEventPublisher _eventPublisher;
         protected readonly ILanguageService _languageService;
@@ -61,7 +62,7 @@ namespace Nop.Services.Catalog
         protected readonly IRepository<StoreMapping> _storeMappingRepository;
         protected readonly IRepository<TierPrice> _tierPriceRepository;
         protected readonly IRepository<Warehouse> _warehouseRepository;
-        protected readonly IStaticCacheManager _cacheManager;
+        protected readonly IStaticCacheManager _staticCacheManager;
         protected readonly IStoreMappingService _storeMappingService;
         protected readonly IStoreService _storeService;
         protected readonly IWorkContext _workContext;
@@ -74,8 +75,9 @@ namespace Nop.Services.Catalog
         public ProductService(CatalogSettings catalogSettings,
             CommonSettings commonSettings,
             IAclService aclService,
+            ICacheKeyService cacheKeyService,
             ICustomerService customerService,
-            IDataProvider dataProvider,
+            INopDataProvider dataProvider,
             IDateRangeService dateRangeService,
             IEventPublisher eventPublisher,
             ILanguageService languageService,
@@ -99,7 +101,7 @@ namespace Nop.Services.Catalog
             IRepository<StoreMapping> storeMappingRepository,
             IRepository<TierPrice> tierPriceRepository,
             IRepository<Warehouse> warehouseRepositor,
-            IStaticCacheManager cacheManager,
+            IStaticCacheManager staticCacheManager,
             IStoreService storeService,
             IStoreMappingService storeMappingService,
             IWorkContext workContext,
@@ -108,6 +110,7 @@ namespace Nop.Services.Catalog
             _catalogSettings = catalogSettings;
             _commonSettings = commonSettings;
             _aclService = aclService;
+            _cacheKeyService = cacheKeyService;
             _customerService = customerService;
             _dataProvider = dataProvider;
             _dateRangeService = dateRangeService;
@@ -133,7 +136,7 @@ namespace Nop.Services.Catalog
             _storeMappingRepository = storeMappingRepository;
             _tierPriceRepository = tierPriceRepository;
             _warehouseRepository = warehouseRepositor;
-            _cacheManager = cacheManager;
+            _staticCacheManager = staticCacheManager;
             _storeMappingService = storeMappingService;
             _storeService = storeService;
             _workContext = workContext;
@@ -357,7 +360,7 @@ namespace Nop.Services.Catalog
                         p.ShowOnHomepage
                         select p;
 
-            var products = query.ToCachedList(NopCatalogCachingDefaults.ProductsAllDisplayedOnHomepageCacheKey);
+            var products = query.ToCachedList(_cacheKeyService.PrepareKeyForDefaultCache(NopCatalogDefaults.ProductsAllDisplayedOnHomepageCacheKey));
 
             return products;
         }
@@ -385,7 +388,7 @@ namespace Nop.Services.Catalog
             if (productIds == null || productIds.Length == 0)
                 return new List<Product>();
 
-            var key = NopCatalogCachingDefaults.ProductsByIdsCacheKey.FillCacheKey(productIds);
+            var key = _cacheKeyService.PrepareKeyForDefaultCache(NopCatalogDefaults.ProductsByIdsCacheKey, productIds);
 
             var query = from p in _productRepository.Table
                         where productIds.Contains(p.Id) && !p.Deleted
@@ -509,11 +512,11 @@ namespace Nop.Services.Catalog
                         select p;
             }
 
-            var cacheKey = NopCatalogCachingDefaults.CategoryNumberOfProductsCacheKey
-                .FillCacheKey(allowedCustomerRolesIds, storeId, categoryIds);
+            var cacheKey = _cacheKeyService.PrepareKeyForDefaultCache(NopCatalogDefaults.CategoryNumberOfProductsCacheKey,
+                allowedCustomerRolesIds, storeId, categoryIds);
 
             //only distinct products
-            var result = _cacheManager.Get(cacheKey, () => query.Select(p => p.Id).Distinct().Count());
+            var result = _staticCacheManager.Get(cacheKey, () => query.Select(p => p.Id).Distinct().Count());
 
             return result;
         }
@@ -774,6 +777,7 @@ namespace Nop.Services.Catalog
             }
             //return products
             var totalRecords = pTotalRecords.Value != DBNull.Value ? Convert.ToInt32(pTotalRecords.Value) : 0;
+            
             return new PagedList<Product>(products, pageIndex, pageSize, totalRecords);
         }
 
@@ -795,11 +799,7 @@ namespace Nop.Services.Catalog
                 orderby p.Name
                 select p;
 
-            var key = NopCatalogCachingDefaults.ProductsByProductAtributeCacheKey.FillCacheKey(productAttributeId);
-
-            var products = query.ToCachedPagedList(key, pageIndex, pageSize);
-
-            return products;
+            return new PagedList<Product>(query, pageIndex, pageSize);
         }
 
         /// <summary>
@@ -1500,19 +1500,6 @@ namespace Nop.Services.Catalog
                     AdjustInventory(associatedProduct, quantityToChange * attributeValue.Quantity, message);
                 }
             }
-
-            //TODO send back in stock notifications?
-            //also do not forget to uncomment some code above ("prevStockQuantity")
-            //if (product.ManageInventoryMethod == ManageInventoryMethod.ManageStock &&
-            //    product.BackorderMode == BackorderMode.NoBackorders &&
-            //    product.AllowBackInStockSubscriptions &&
-            //    product.GetTotalStockQuantity() > 0 &&
-            //    prevStockQuantity <= 0 &&
-            //    product.Published &&
-            //    !product.Deleted)
-            //{
-            //    //_backInStockSubscriptionService.SendNotificationsToSubscribers(product);
-            //}
         }
 
         /// <summary>
@@ -1681,8 +1668,6 @@ namespace Nop.Services.Catalog
 
             //quantity change history
             AddStockQuantityHistoryEntry(product, quantity, pwi.StockQuantity, warehouseId, message);
-
-            //TODO add support for bundled products (AttributesXml)
         }
 
         /// <summary>
@@ -1724,8 +1709,6 @@ namespace Nop.Services.Catalog
             //quantity change history
             AddStockQuantityHistoryEntry(product, qty, pwi.StockQuantity, shipmentItem.WarehouseId, message);
 
-            //TODO add support for bundled products (AttributesXml)
-
             return qty;
         }
 
@@ -1764,7 +1747,7 @@ namespace Nop.Services.Catalog
                         orderby rp.DisplayOrder, rp.Id
                         select rp;
 
-            var relatedProducts = query.ToCachedList(NopCatalogCachingDefaults.ProductsRelatedCacheKey.FillCacheKey(productId, showHidden));
+            var relatedProducts = query.ToCachedList(_cacheKeyService.PrepareKeyForDefaultCache(NopCatalogDefaults.ProductsRelatedCacheKey, productId, showHidden));
 
             return relatedProducts;
         }
@@ -2031,7 +2014,7 @@ namespace Nop.Services.Catalog
         public virtual IList<TierPrice> GetTierPricesByProduct(int productId)
         {
             return _tierPriceRepository.Table.Where(tp => tp.ProductId == productId)
-                .ToCachedList(NopCatalogCachingDefaults.ProductTierPricesCacheKey.FillCacheKey(productId));
+                .ToCachedList(_cacheKeyService.PrepareKeyForDefaultCache(NopCatalogDefaults.ProductTierPricesCacheKey, productId));
         }
 
         /// <summary>
@@ -2556,6 +2539,7 @@ namespace Nop.Services.Catalog
 
             _productWarehouseInventoryRepository.Insert(pwi);
 
+            //event notification
             _eventPublisher.EntityInserted(pwi);
         }
 
@@ -2569,7 +2553,8 @@ namespace Nop.Services.Catalog
                 throw new ArgumentNullException(nameof(pwi));
 
             _productWarehouseInventoryRepository.Update(pwi);
-            
+
+            //event notification
             _eventPublisher.EntityUpdated(pwi);
         }
 
@@ -2586,7 +2571,8 @@ namespace Nop.Services.Catalog
                 return;
 
             _productWarehouseInventoryRepository.Update(pwis);
-            
+
+            //event notification
             foreach (var pwi in pwis)
             {
                 _eventPublisher.EntityUpdated(pwi);
@@ -2679,12 +2665,12 @@ namespace Nop.Services.Catalog
                 where dcm.DiscountId == discount.Id
                 select new { product = p, dcm };
 
-            if (!mappingsWithProducts.Any())
-                return;
-
-            foreach (var pdcm in mappingsWithProducts)
+            foreach (var pdcm in mappingsWithProducts.ToList())
             {
                 _discountProductMappingRepository.Delete(pdcm.dcm);
+                //event notification
+                _eventPublisher.EntityDeleted(pdcm.dcm);
+
                 //update "HasDiscountsApplied" property
                 UpdateHasDiscountsApplied(pdcm.product);                    
             }   

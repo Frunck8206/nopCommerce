@@ -288,7 +288,7 @@ namespace Nop.Services.Media.RoxyFileman
                 if (targetSize != 0)
                 {
                     //resizing required
-                    using var image = Image.Load(pictureBinary, out var imageFormat);
+                    using var image = Image.Load<Rgba32>(pictureBinary, out var imageFormat);
                     var size = image.Size();
 
                     image.Mutate(imageProcess => imageProcess.Resize(new ResizeOptions
@@ -345,6 +345,9 @@ namespace Nop.Services.Media.RoxyFileman
             foreach (var filePath in _fileProvider.GetFiles(_fileProvider.GetAbsolutePath(NopRoxyFilemanDefaults.DefaultRootDirectory.Split('/')), topDirectoryOnly: false))
             {
                 var uniqueFileName = GetUniqueFileName(filePath, _fileProvider.GetFileNameWithoutExtension(filePath));
+
+                if (_pictureService.GetPictureSeName(uniqueFileName) != null)
+                    continue;
 
                 var picture = new Picture
                 {

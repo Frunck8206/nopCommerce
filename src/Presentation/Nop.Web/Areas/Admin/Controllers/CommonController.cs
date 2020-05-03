@@ -33,7 +33,7 @@ namespace Nop.Web.Areas.Admin.Controllers
 
         private readonly ICommonModelFactory _commonModelFactory;
         private readonly ICustomerService _customerService;
-        private readonly IDataProvider _dataProvider;
+        private readonly INopDataProvider _dataProvider;
         private readonly IDateTimeHelper _dateTimeHelper;
         private readonly ILanguageService _languageService;
         private readonly ILocalizationService _localizationService;
@@ -43,7 +43,7 @@ namespace Nop.Web.Areas.Admin.Controllers
         private readonly IPermissionService _permissionService;
         private readonly IQueuedEmailService _queuedEmailService;
         private readonly IShoppingCartService _shoppingCartService;
-        private readonly IStaticCacheManager _cacheManager;
+        private readonly IStaticCacheManager _staticCacheManager;
         private readonly IUrlRecordService _urlRecordService;
         private readonly IWebHelper _webHelper;
         private readonly IWorkContext _workContext;
@@ -54,7 +54,7 @@ namespace Nop.Web.Areas.Admin.Controllers
 
         public CommonController(ICommonModelFactory commonModelFactory,
             ICustomerService customerService,
-            IDataProvider dataProvider,
+            INopDataProvider dataProvider,
             IDateTimeHelper dateTimeHelper,
             ILanguageService languageService,
             ILocalizationService localizationService,
@@ -64,7 +64,7 @@ namespace Nop.Web.Areas.Admin.Controllers
             IPermissionService permissionService,
             IQueuedEmailService queuedEmailService,
             IShoppingCartService shoppingCartService,
-            IStaticCacheManager cacheManager,
+            IStaticCacheManager staticCacheManager,
             IUrlRecordService urlRecordService,
             IWebHelper webHelper,
             IWorkContext workContext)
@@ -81,7 +81,7 @@ namespace Nop.Web.Areas.Admin.Controllers
             _permissionService = permissionService;
             _queuedEmailService = queuedEmailService;
             _shoppingCartService = shoppingCartService;
-            _cacheManager = cacheManager;
+            _staticCacheManager = staticCacheManager;
             _urlRecordService = urlRecordService;
             _webHelper = webHelper;
             _workContext = workContext;
@@ -178,7 +178,7 @@ namespace Nop.Web.Areas.Admin.Controllers
                     if (fileName.Equals("index.htm", StringComparison.InvariantCultureIgnoreCase))
                         continue;
 
-                    var info = _fileProvider.GetFileInfo(_fileProvider.Combine(EXPORT_IMPORT_PATH, fileName));
+                    var info = _fileProvider.GetFileInfo(fullPath);
                     var lastModifiedTimeUtc = info.LastModified.UtcDateTime;
                     if ((!startDateValue.HasValue || startDateValue.Value < lastModifiedTimeUtc) &&
                         (!endDateValue.HasValue || lastModifiedTimeUtc < endDateValue.Value))
@@ -217,7 +217,7 @@ namespace Nop.Web.Areas.Admin.Controllers
 
             try
             {
-                _dataProvider.BackupDatabase(_maintenanceService.GetNewBackupFilePath());
+                _dataProvider.BackupDatabase(_maintenanceService.CreateNewBackupFilePath());
                 _notificationService.SuccessNotification(_localizationService.GetResource("Admin.System.Maintenance.BackupDatabase.BackupCreated"));
             }
             catch (Exception exc)
@@ -333,7 +333,7 @@ namespace Nop.Web.Areas.Admin.Controllers
             if (!_permissionService.Authorize(StandardPermissionProvider.ManageMaintenance))
                 return AccessDeniedView();
 
-            _cacheManager.Clear();
+            _staticCacheManager.Clear();
 
             //home page
             if (string.IsNullOrEmpty(returnUrl))
