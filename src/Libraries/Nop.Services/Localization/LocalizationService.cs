@@ -435,6 +435,8 @@ namespace Nop.Services.Localization
 
             var lsNamesList = _lsrRepository.Table
                 .Where(lsr => lsr.LanguageId == language.Id)
+                .GroupBy(lsr => lsr.ResourceName, (key, groupedLsr) => 
+                    groupedLsr.OrderBy(lsr => lsr.Id).Last())
                 .ToDictionary(lsr => lsr.ResourceName, lsr => lsr);
 
             var lrsToUpdateList = new List<LocaleStringResource>();
@@ -454,16 +456,11 @@ namespace Nop.Services.Localization
                 else
                 {
                     var lsr = new LocaleStringResource { LanguageId = language.Id, ResourceName = name, ResourceValue = value };
-                    if (lrsToInsertList.ContainsKey(name))
-                        lrsToInsertList[name] = lsr;
-                    else
-                        lrsToInsertList.Add(name, lsr);
+                    lrsToInsertList[name] = lsr;
                 }
             }
 
-            foreach (var lrsToUpdate in lrsToUpdateList) 
-                _lsrRepository.Update(lrsToUpdate);
-
+            _lsrRepository.Update(lrsToUpdateList);
             _lsrRepository.Insert(lrsToInsertList.Values);
 
             //clear cache
@@ -729,6 +726,9 @@ namespace Nop.Services.Localization
                 }))
                 .ToList();
             _lsrRepository.Insert(locales);
+
+            //clear cache
+            _staticCacheManager.RemoveByPrefix(NopLocalizationDefaults.LocaleStringResourcesPrefixCacheKey);
         }
 
         /// <summary>
@@ -754,6 +754,9 @@ namespace Nop.Services.Localization
         {
             _lsrRepository.Delete(locale => (!languageId.HasValue || locale.LanguageId == languageId.Value) &&
                 resourceNames.Contains(locale.ResourceName, StringComparer.InvariantCultureIgnoreCase));
+
+            //clear cache
+            _staticCacheManager.RemoveByPrefix(NopLocalizationDefaults.LocaleStringResourcesPrefixCacheKey);
         }
 
         /// <summary>
@@ -766,6 +769,9 @@ namespace Nop.Services.Localization
             _lsrRepository.Delete(locale => (!languageId.HasValue || locale.LanguageId == languageId.Value) &&
                 !string.IsNullOrEmpty(locale.ResourceName) &&
                 locale.ResourceName.StartsWith(resourceNamePrefix, StringComparison.InvariantCultureIgnoreCase));
+
+            //clear cache
+            _staticCacheManager.RemoveByPrefix(NopLocalizationDefaults.LocaleStringResourcesPrefixCacheKey);
         }
 
         /// <summary>

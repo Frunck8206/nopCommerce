@@ -880,6 +880,93 @@ set @resources='
   <LocaleResource Name="Admin.Common.EmptyItemText">
     <Value>---</Value>
   </LocaleResource>
+  <LocaleResource Name="Admin.Catalog.Products.Fields.RentalPriceLength.ShouldBeGreaterThanZero">
+    <Value>Rental period length should be greater 0.</Value>
+  </LocaleResource>
+  <LocaleResource Name="Admin.System.SeNames.List.IsActive">
+    <Value>Is active</Value>
+  </LocaleResource>
+  <LocaleResource Name="Admin.System.SeNames.List.IsActive.Hint">
+    <Value>Search by a "IsActive" property.</Value>
+  </LocaleResource>
+  <LocaleResource Name="Admin.System.SeNames.List.IsActive.ActiveOnly">
+    <Value>Active only</Value>
+  </LocaleResource>
+  <LocaleResource Name="Admin.System.SeNames.List.IsActive.All">
+    <Value>All</Value>
+  </LocaleResource>
+  <LocaleResource Name="Admin.System.SeNames.List.IsActive.InactiveOnly">
+    <Value>Inactive only</Value>
+  </LocaleResource>
+  <LocaleResource Name="Admin.System.SeNames.List.Language">
+    <Value>Language</Value>
+  </LocaleResource>
+  <LocaleResource Name="Admin.System.SeNames.List.Language.Hint">
+    <Value>Search by a "Language" property.</Value>
+  </LocaleResource>
+  <LocaleResource Name="Admin.System.SeNames.List.Language.Standard">
+    <Value>Standard</Value>
+  </LocaleResource>
+  <LocaleResource Name="Admin.System.SeNames.List.Name">
+    <Value>Name</Value>
+  </LocaleResource>
+  <LocaleResource Name="Admin.System.SeNames.List.Name.Hint">
+    <Value>A name to find.</Value>
+  </LocaleResource>
+  <LocaleResource Name="Admin.System.SeNames.Name.Hint">
+    <Value></Value>
+  </LocaleResource>
+  <LocaleResource Name="Plugins.Shipping.UPS.Fields.DimensionsType">
+    <Value>Dimensions type</Value>
+  </LocaleResource>
+  <LocaleResource Name="Plugins.Shipping.UPS.Fields.DimensionsType.Hint">
+    <Value>Choose dimensions type (inches or centimeters).</Value>
+  </LocaleResource>
+  <LocaleResource Name="Plugins.Shipping.UPS.Fields.WeightType">
+    <Value>Weight type</Value>
+  </LocaleResource>
+  <LocaleResource Name="Plugins.Shipping.UPS.Fields.WeightType.Hint">
+    <Value>Choose the weight type (pounds or kilograms).</Value>
+  </LocaleResource>
+  <LocaleResource Name="Shipping.EstimateShippingPopUp.Product.IsNotFound">
+    <Value>Product is not found</Value>
+  </LocaleResource>
+  <LocaleResource Name="Admin.Configuration.Settings.Shipping.EstimateShippingCartPageEnabled">
+    <Value>Estimate shipping enabled (cart page)</Value>
+  </LocaleResource>
+  <LocaleResource Name="Admin.Configuration.Settings.Shipping.EstimateShippingCartPageEnabled.Hint">
+    <Value>Check to allow customers to estimate shipping on the shopping cart page.</Value>
+  </LocaleResource>
+  <LocaleResource Name="Admin.Configuration.Settings.Shipping.EstimateShippingProductPageEnabled">
+    <Value>Estimate shipping enabled (product page)</Value>
+  </LocaleResource>
+  <LocaleResource Name="Admin.Configuration.Settings.Shipping.EstimateShippingProductPageEnabled.Hint">
+    <Value>Check to allow customers to estimate shipping on the product details pages. Please note that all the shipping provider APIs will be called on the product details page. Also the final shipping rate in the cart may not be exactly equal to the sum of all the individual estimates.</Value>
+  </LocaleResource>
+  <LocaleResource Name="Admin.Configuration.Settings.Shipping.EstimateShippingEnabled">
+    <Value></Value>
+  </LocaleResource>
+  <LocaleResource Name="Admin.Configuration.Settings.Shipping.EstimateShippingEnabled.Hint">
+    <Value></Value>
+  </LocaleResource>
+  <LocaleResource Name="Plugins.Tax.Avalara.Fields.AccountId.Required">
+    <Value>Account ID is required</Value>
+  </LocaleResource>
+  <LocaleResource Name="Plugins.Tax.Avalara.Fields.EnableLogging">
+    <Value>Enable logging</Value>
+  </LocaleResource>
+  <LocaleResource Name="Plugins.Tax.Avalara.Fields.EnableLogging.Hint">
+    <Value>Determine whether to enable logging of all requests to Avalara services.</Value>
+  </LocaleResource>
+  <LocaleResource Name="Plugins.Tax.Avalara.Fields.LicenseKey.Required">
+    <Value>Account license key is required</Value>
+  </LocaleResource>
+  <LocaleResource Name="Plugins.Tax.Avalara.Fields.TaxOriginAddressType.DefaultTaxAddress.Warning">
+    <Value><![CDATA[Ensure that you have correctly filled in the ''Default tax address'' under <a href=\"{0}\" target=\"_blank\">Tax settings</a>]]></Value>
+  </LocaleResource>
+  <LocaleResource Name="Plugins.Tax.Avalara.Fields.TaxOriginAddressType.ShippingOrigin.Warning">
+    <Value><![CDATA[Ensure that you have correctly filled in the ''Shipping origin'' under <a href=\"{0}\" target=\"_blank\">Shipping settings</a>]]></Value>
+  </LocaleResource>
 </Language>
 '
 
@@ -3153,4 +3240,106 @@ INSERT [MigrationVersionInfo] ([Version], [AppliedOn], [Description]) VALUES (63
 INSERT [MigrationVersionInfo] ([Version], [AppliedOn], [Description]) VALUES (637196977559280394, CAST(N'2020-04-30T13:53:20.000' AS DateTime), N'AddProductVisibleIndividuallyPublishedDeletedExtendedIX')
 INSERT [MigrationVersionInfo] ([Version], [AppliedOn], [Description]) VALUES (637196977559280395, CAST(N'2020-04-30T13:53:20.000' AS DateTime), N'AddCategoryDeletedExtendedIX')
 INSERT [MigrationVersionInfo] ([Version], [AppliedOn], [Description]) VALUES (637207344000000000, CAST(N'2020-04-30T13:54:21.000' AS DateTime), N'Widgets.FacebookPixel base schema')
+GO
+
+--delete FK
+IF EXISTS (SELECT *  FROM sys.foreign_keys  WHERE object_id = OBJECT_ID(N'FK_StockQuantityHistory_WarehouseId_Warehouse_Id') AND parent_object_id = OBJECT_ID(N'StockQuantityHistory'))
+	ALTER TABLE [StockQuantityHistory] DROP CONSTRAINT FK_StockQuantityHistory_WarehouseId_Warehouse_Id
+GO
+
+--update country
+UPDATE [Country]
+SET [ThreeLetterIsoCode] = 'ROU'
+WHERE [TwoLetterIsoCode] = 'RO' AND [ThreeLetterIsoCode] = 'ROM'
+GO
+
+--new column
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id=object_id('[RewardPointsHistory]') and NAME='UsedWithOrder')
+BEGIN
+	ALTER TABLE [RewardPointsHistory] ADD [UsedWithOrder] uniqueidentifier NULL
+END
+GO
+
+--new setting
+IF NOT EXISTS (SELECT 1 FROM [Setting] WHERE [Name] = N'upssettings.weighttype')
+BEGIN
+    INSERT [Setting] ([Name], [Value], [StoreId])
+    VALUES (N'upssettings.weighttype', N'LBS', 0)
+END
+GO
+
+--new setting
+IF NOT EXISTS (SELECT 1 FROM [Setting] WHERE [Name] = N'upssettings.dimensionstype')
+BEGIN
+    INSERT [Setting] ([Name], [Value], [StoreId])
+    VALUES (N'upssettings.dimensionstype', N'IN', 0)
+END
+GO
+
+--rename setting
+IF EXISTS (SELECT 1 FROM [Setting] WHERE [Name] = N'shippingsettings.estimateshippingenabled')
+BEGIN
+	UPDATE [Setting]
+	SET [Name] = N'shippingsettings.estimateshippingcartpageenabled'
+	WHERE [Name] = N'shippingsettings.estimateshippingenabled'
+END
+GO
+
+--new setting
+IF NOT EXISTS (SELECT 1 FROM [Setting] WHERE [Name] = N'shippingsettings.estimateshippingproductpageenabled')
+BEGIN
+    INSERT [Setting] ([Name], [Value], [StoreId])
+    VALUES (N'shippingsettings.estimateshippingproductpageenabled', N'True', 0)
+END
+GO
+
+--new setting
+IF NOT EXISTS (SELECT 1 FROM [Setting] WHERE [Name] = N'avalarataxsettings.enablelogging')
+BEGIN
+    INSERT [Setting] ([Name], [Value], [StoreId])
+    VALUES (N'avalarataxsettings.enablelogging', N'True', 0)
+END
+GO
+
+--new setting
+IF NOT EXISTS (SELECT 1 FROM [Setting] WHERE [Name] = N'commonsettings.restarttimeout')
+BEGIN
+    INSERT [Setting] ([Name], [Value], [StoreId])
+    VALUES (N'commonsettings.restarttimeout', N'3000', 0)
+END
+GO
+
+-- remove the Nop.Plugin.Widgets.FacebookPixel plugin migration if it table not exists
+IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = object_id(N'[FacebookPixelConfiguration]') AND objectproperty(object_id, N'IsUserTable') = 1)
+BEGIN
+	DELETE FROM [MigrationVersionInfo] WHERE [Description] = 'Widgets.FacebookPixel base schema';
+END
+GO
+
+-- remove the Nop.Plugin.Tax.FixedOrByCountryStateZip plugin migration if it table not exists
+IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = object_id(N'[TaxRate]') AND objectproperty(object_id, N'IsUserTable') = 1)
+BEGIN
+	DELETE FROM [MigrationVersionInfo] WHERE [Description] = 'Tax.FixedOrByCountryStateZip base schema';
+END
+GO
+
+-- remove the Nop.Plugin.Tax.Avalara plugin migration if it table not exists
+IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = object_id(N'[TaxTransactionLog]') AND objectproperty(object_id, N'IsUserTable') = 1)
+BEGIN
+	DELETE FROM [MigrationVersionInfo] WHERE [Description] = 'Tax.Avalara base schema';
+END
+GO
+
+-- remove the Nop.Plugin.Shipping.FixedByWeightByTotal plugin migration if it table not exists
+IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = object_id(N'[ShippingByWeightByTotalRecord]') AND objectproperty(object_id, N'IsUserTable') = 1)
+BEGIN
+	DELETE FROM [MigrationVersionInfo] WHERE [Description] = 'Shipping.FixedByWeightByTotal base schema';
+END
+GO
+
+-- remove the Nop.Plugin.Pickup.PickupInStore plugin migration if it table not exists
+IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = object_id(N'[StorePickupPoint]') AND objectproperty(object_id, N'IsUserTable') = 1)
+BEGIN
+	DELETE FROM [MigrationVersionInfo] WHERE [Description] = 'Pickup.PickupInStore base schema';
+END
 GO
