@@ -30,76 +30,21 @@ namespace Nop.Data
         #region Utils
 
         /// <summary>
-        /// Configures the data context
-        /// </summary>
-        /// <param name="dataContext">Data context to configure</param>
-        private void ConfigureDataContext(IDataContext dataContext)
-        {
-            AdditionalSchema.SetDataType(
-                typeof(Guid),
-                new SqlDataType(DataType.NChar, typeof(Guid), 36));
-
-            AdditionalSchema.SetConvertExpression<string, Guid>(strGuid => new Guid(strGuid));
-        }
-
-        protected MySqlConnectionStringBuilder GetConnectionStringBuilder()
-        {
-            return new MySqlConnectionStringBuilder(CurrentConnectionString);
-        }
-
-        /// <summary>
-        /// Get SQL commands from the script
-        /// </summary>
-        /// <param name="sql">SQL script</param>
-        /// <returns>List of commands</returns>
-        private static IList<string> GetCommandsFromScript(string sql)
-        {
-            var commands = new List<string>();
-
-            var batches = Regex.Split(sql, @"DELIMITER \;", RegexOptions.IgnoreCase | RegexOptions.Multiline);
-
-            if (batches.Length > 0)
-            {
-                commands.AddRange(
-                    batches
-                        .Where(b => !string.IsNullOrWhiteSpace(b))
-                        .Select(b =>
-                        {
-                            b = Regex.Replace(b, @"(DELIMITER )?\$\$", string.Empty);
-                            b = Regex.Replace(b, @"#(.*?)\r?\n", "/* $1 */");
-                            b = Regex.Replace(b, @"(\r?\n)|(\t)", " ");
-
-                            return b;
-                        }));
-            }
-
-            return commands;
-        }
-
-        /// <summary>
-        /// Execute commands from a file with SQL script against the context database
-        /// </summary>
-        /// <param name="fileProvider">File provider</param>
-        /// <param name="filePath">Path to the file</param>
-        protected void ExecuteSqlScriptFromFile(INopFileProvider fileProvider, string filePath)
-        {
-            filePath = fileProvider.MapPath(filePath);
-            if (!fileProvider.FileExists(filePath))
-                return;
-
-            ExecuteSqlScript(fileProvider.ReadAllText(filePath, Encoding.Default));
-        }
-
-        /// <summary>
         /// Creates the database connection
         /// </summary>
         protected override DataConnection CreateDataConnection()
         {
             var dataContext = CreateDataConnection(LinqToDbDataProvider);
 
-            ConfigureDataContext(dataContext);
+            dataContext.MappingSchema.SetDataType(typeof(Guid), new SqlDataType(DataType.NChar, typeof(Guid), 36));
+            dataContext.MappingSchema.SetConvertExpression<string, Guid>(strGuid => new Guid(strGuid));
 
             return dataContext;
+        }
+
+        protected MySqlConnectionStringBuilder GetConnectionStringBuilder()
+        {
+            return new MySqlConnectionStringBuilder(CurrentConnectionString);
         }
 
         #endregion
@@ -193,28 +138,12 @@ namespace Nop.Data
         }
 
         /// <summary>
-        /// Execute commands from the SQL script
-        /// </summary>
-        /// <param name="sql">SQL script</param>
-        public void ExecuteSqlScript(string sql)
-        {
-            var sqlCommands = GetCommandsFromScript(sql);
-            using var currentConnection = CreateDataConnection();
-            foreach (var command in sqlCommands)
-                currentConnection.Execute(command);
-        }
-
-        /// <summary>
         /// Initialize database
         /// </summary>
         public void InitializeDatabase()
         {
             var migrationManager = EngineContext.Current.Resolve<IMigrationManager>();
-            migrationManager.ApplyUpMigrations();
-
-            //create stored procedures 
-            var fileProvider = EngineContext.Current.Resolve<INopFileProvider>();
-            ExecuteSqlScriptFromFile(fileProvider, NopDataDefaults.MySQLStoredProceduresFilePath);
+            migrationManager.ApplyUpMigrations(typeof(NopDbStartup).Assembly);
         }
 
         /// <summary>
@@ -265,16 +194,16 @@ namespace Nop.Data
         /// <summary>
         /// Set table identity (is supported)
         /// </summary>
-        /// <typeparam name="T">Entity</typeparam>
+        /// <typeparam name="TEntity">Entity</typeparam>
         /// <param name="ident">Identity value</param>
-        public virtual void SetTableIdent<T>(int ident) where T : BaseEntity
+        public virtual void SetTableIdent<TEntity>(int ident) where TEntity : BaseEntity
         {
-            var currentIdent = GetTableIdent<T>();
+            var currentIdent = GetTableIdent<TEntity>();
             if (!currentIdent.HasValue || ident <= currentIdent.Value)
                 return;
 
             using var currentConnection = CreateDataConnection();
-            var tableName = currentConnection.GetTable<T>().TableName;
+            var tableName = currentConnection.GetTable<TEntity>().TableName;
 
             currentConnection.Execute($"ALTER TABLE `{tableName}` AUTO_INCREMENT = {ident};");
         }
@@ -370,7 +299,7 @@ namespace Nop.Data
         /// <summary>
         /// MySql data provider
         /// </summary>
-        protected override IDataProvider LinqToDbDataProvider => new MySqlDataProvider();
+        protected override IDataProvider LinqToDbDataProvider => MySqlTools.GetDataProvider();
 
         /// <summary>
         /// Gets allowed a limit input value of the data for hashing functions, returns 0 if not limited

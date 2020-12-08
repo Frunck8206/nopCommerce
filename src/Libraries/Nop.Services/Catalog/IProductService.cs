@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Nop.Core;
 using Nop.Core.Domain.Catalog;
@@ -33,6 +33,29 @@ namespace Nop.Services.Catalog
         /// </summary>
         /// <returns>Products</returns>
         IList<Product> GetAllProductsDisplayedOnHomepage();
+
+        /// <summary>
+        /// Gets featured products by a category identifier
+        /// </summary>
+        /// <param name="categoryId">Category identifier</param>
+        /// <param name="storeId">Store identifier; 0 if you want to get all records</param>
+        /// <returns>List of featured products</returns>
+        IList<Product> GetCategoryFeaturedProducts(int categoryId, int storeId = 0);
+
+        /// <summary>
+        /// Gets featured products by a manufacturer identifier
+        /// </summary>
+        /// <param name="manufacturerId">Manufacturer identifier</param>
+        /// <param name="storeId">Store identifier; 0 if you want to get all records</param>
+        /// <returns>List of featured products</returns>
+        IList<Product> GetManufacturerFeaturedProducts(int manufacturerId, int storeId = 0);
+
+        /// <summary>
+        /// Gets products which marked as new
+        /// </summary>
+        /// <param name="storeId">Store identifier; 0 if you want to get all records</param>
+        /// <returns>List of new products</returns>
+        IList<Product> GetProductsMarkedAsNew(int storeId = 0);
 
         /// <summary>
         /// Gets product
@@ -86,8 +109,7 @@ namespace Nop.Services.Catalog
         /// <param name="warehouseId">Warehouse identifier; 0 to load all records</param>
         /// <param name="productType">Product type; 0 to load all records</param>
         /// <param name="visibleIndividuallyOnly">A values indicating whether to load only products marked as "visible individually"; "false" to load all records; "true" to load "visible individually" only</param>
-        /// <param name="markedAsNewOnly">A values indicating whether to load only products marked as "new"; "false" to load all records; "true" to load "marked as new" only</param>
-        /// <param name="featuredProducts">A value indicating whether loaded products are marked as featured (relates only to categories and manufacturers). 0 to load featured products only, 1 to load not featured products only, null to load all products</param>
+        /// <param name="excludeFeaturedProducts">A value indicating whether loaded products are marked as featured (relates only to categories and manufacturers); "false" (by default) to load all records; "true" to exclude featured products from results</param>
         /// <param name="priceMin">Minimum price; null to load all records</param>
         /// <param name="priceMax">Maximum price; null to load all records</param>
         /// <param name="productTagId">Product tag identifier; 0 to load all records</param>
@@ -116,8 +138,7 @@ namespace Nop.Services.Catalog
             int warehouseId = 0,
             ProductType? productType = null,
             bool visibleIndividuallyOnly = false,
-            bool markedAsNewOnly = false,
-            bool? featuredProducts = null,
+            bool excludeFeaturedProducts = false,
             decimal? priceMin = null,
             decimal? priceMax = null,
             int productTagId = 0,
@@ -146,8 +167,7 @@ namespace Nop.Services.Catalog
         /// <param name="warehouseId">Warehouse identifier; 0 to load all records</param>
         /// <param name="productType">Product type; 0 to load all records</param>
         /// <param name="visibleIndividuallyOnly">A values indicating whether to load only products marked as "visible individually"; "false" to load all records; "true" to load "visible individually" only</param>
-        /// <param name="markedAsNewOnly">A values indicating whether to load only products marked as "new"; "false" to load all records; "true" to load "marked as new" only</param>
-        /// <param name="featuredProducts">A value indicating whether loaded products are marked as featured (relates only to categories and manufacturers). 0 to load featured products only, 1 to load not featured products only, null to load all products</param>
+        /// <param name="excludeFeaturedProducts">A value indicating whether loaded products are marked as featured (relates only to categories and manufacturers); "false" (by default) to load all records; "true" to exclude featured products from results</param>
         /// <param name="priceMin">Minimum price; null to load all records</param>
         /// <param name="priceMax">Maximum price; null to load all records</param>
         /// <param name="productTagId">Product tag identifier; 0 to load all records</param>
@@ -178,8 +198,7 @@ namespace Nop.Services.Catalog
             int warehouseId = 0,
             ProductType? productType = null,
             bool visibleIndividuallyOnly = false,
-            bool markedAsNewOnly = false,
-            bool? featuredProducts = null,
+            bool excludeFeaturedProducts = false,
             decimal? priceMin = null,
             decimal? priceMax = null,
             int productTagId = 0,
@@ -689,7 +708,7 @@ namespace Nop.Services.Catalog
         /// </summary>
         /// <param name="productReviewIds">Product review identifiers</param>
         /// <returns>Product reviews</returns>
-        IList<ProductReview> GetProducReviewsByIds(int[] productReviewIds);
+        IList<ProductReview> GetProductReviewsByIds(int[] productReviewIds);
 
         /// <summary>
         /// Inserts a product review
@@ -741,6 +760,14 @@ namespace Nop.Services.Catalog
         /// </summary>
         /// <param name="productReview">Product review</param>
         void UpdateProductReview(ProductReview productReview);
+
+        /// <summary>
+        /// Check possibility added review for current customer
+        /// </summary>
+        /// <param name="productId">Current product</param>
+        /// <param name="storeId">The store identifier; pass 0 to load all records</param>
+        /// <returns></returns>
+        bool CanAddReview(int productId, int storeId = 0);
 
         #endregion
 

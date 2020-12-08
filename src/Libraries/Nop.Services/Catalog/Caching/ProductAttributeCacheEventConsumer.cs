@@ -9,18 +9,16 @@ namespace Nop.Services.Catalog.Caching
     public partial class ProductAttributeCacheEventConsumer : CacheEventConsumer<ProductAttribute>
     {
         /// <summary>
-        /// entity
+        /// Clear cache data
         /// </summary>
         /// <param name="entity">Entity</param>
         /// <param name="entityEventType">Entity event type</param>
         protected override void ClearCache(ProductAttribute entity, EntityEventType entityEventType)
         {
-            if (entityEventType != EntityEventType.Delete) 
-                return;
+            if (entityEventType == EntityEventType.Insert)
+                Remove(NopCatalogDefaults.ProductAttributeValuesByAttributeCacheKey, entity);
 
-            RemoveByPrefix(NopCatalogDefaults.ProductAttributeMappingsPrefixCacheKey);
-            RemoveByPrefix(NopCatalogDefaults.ProductAttributeValuesAllPrefixCacheKey);
-            RemoveByPrefix(NopCatalogDefaults.ProductAttributeCombinationsAllPrefixCacheKey);
+            base.ClearCache(entity, entityEventType);
         }
     }
 }
